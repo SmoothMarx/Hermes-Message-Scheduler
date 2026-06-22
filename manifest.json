@@ -1,0 +1,13 @@
+{
+  "name": "scheduled-messages",
+  "label": "Scheduled Msgs",
+  "description": "Schedule messages for Beeper, Telegram, and WhatsApp",
+  "icon": "Clock",
+  "version": "2.0.0",
+  "tab": {
+    "path": "/scheduled-messages",
+    "position": "after:skills"
+  },
+  "entry": "dist/index.js",
+  "api": "api.py"
+}

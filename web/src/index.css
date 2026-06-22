@@ -1,0 +1,3 @@
+@import "tailwindcss";
+
+/* Ensure our styles don't heavily override Hermes native variables if possible, but allow Tailwind to work. */
