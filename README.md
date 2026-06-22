@@ -1,3 +1,5 @@
+# CURRENTLY UNDER CONSTRUCTION
+
 # Hermes Message Scheduler Plugin
 
 A plugin for Hermes Agent that allows you to schedule messages across various platforms (Beeper, Telegram, WhatsApp) using Hermes' internal cron system.
