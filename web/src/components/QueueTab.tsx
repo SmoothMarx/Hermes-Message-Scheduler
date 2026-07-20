@@ -1,11 +1,29 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { fetchApi } from '../api';
-import { Edit2, Send, X, Clock } from 'lucide-react';
+import { Edit3, Send, X, Clock, Trash2, CheckSquare, RefreshCw } from 'lucide-react';
 import { CountdownTimer } from './CountdownTimer';
 
 export function QueueTab({ onEdit }: { onEdit: (job: any) => void }) {
   const queryClient = useQueryClient();
+
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+
+  const toggleSelect = (id: number) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+  const toggleSelectAll = () => {
+    if (selectedIds.size === jobs.length) setSelectedIds(new Set());
+    else setSelectedIds(new Set(jobs.map((j: any) => j.id)));
+  };
+  const deleteSelected = () => {
+    selectedIds.forEach(id => deleteMutation.mutate(String(id)));
+    setSelectedIds(new Set());
+  };
 
   const { data, isLoading } = useQuery({
     queryKey: ['jobs'],
@@ -56,7 +74,7 @@ export function QueueTab({ onEdit }: { onEdit: (job: any) => void }) {
 
   if (jobs.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center py-12 text-gray-400 border border-dashed border-gray-700 rounded-lg">
+      <div className="flex flex-col items-center justify-center py-12 text-gray-400 border border-dashed border-gray-800 rounded-xl">
         <Clock className="w-12 h-12 mb-4 opacity-50" />
         <p>No messages in the queue.</p>
       </div>
@@ -65,13 +83,31 @@ export function QueueTab({ onEdit }: { onEdit: (job: any) => void }) {
 
   return (
     <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <label className="flex items-center gap-2 text-sm text-gray-400 cursor-pointer hover:text-gray-300 transition-colors">
+          <input type="checkbox" checked={selectedIds.size === jobs.length && jobs.length > 0} onChange={toggleSelectAll} className="accent-blue-500" />
+          <CheckSquare className="w-4 h-4" />
+          Select All
+        </label>
+        {selectedIds.size > 0 && (
+          <button 
+            onClick={deleteSelected}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-800 hover:bg-gray-700 text-gray-300 border border-gray-700/50 rounded text-sm transition-all duration-150 active:scale-95"
+          >
+            <Trash2 className="w-3.5 h-3.5" /> Delete Selected ({selectedIds.size})
+          </button>
+        )}
+      </div>
       {jobs.map((job: any) => (
-        <div key={job.id} className="p-4 bg-gray-800 rounded border border-gray-700 shadow-sm transition-all hover:border-gray-500">
-          <div className="flex justify-between items-start mb-3">
-            <div>
-              <div className="font-medium text-white flex items-center gap-2">
+        <div key={job.id} className="p-4 bg-gray-900/50 rounded-xl border border-gray-800/50 transition-all hover:border-gray-700/50">
+          <div className="flex items-start gap-3">
+            <input type="checkbox" checked={selectedIds.has(job.id)} onChange={() => toggleSelect(job.id)} className="mt-1 accent-blue-500" />
+            <div className="flex-1 min-w-0">
+              <div className="flex justify-between items-start mb-3">
+                <div>
+              <div className="font-medium text-gray-100 flex items-center gap-2">
                 {job.person} 
-                <span className="px-1.5 py-0.5 bg-gray-900 rounded text-xs text-gray-400 uppercase tracking-wider">{job.network}</span>
+                <span className="px-1.5 py-0.5 bg-gray-800/50 rounded text-xs text-gray-500 uppercase tracking-wider">{job.network}</span>
               </div>
               <div className="text-sm text-blue-400 mt-1 flex items-center gap-1.5">
                 <Clock className="w-3.5 h-3.5" />
@@ -82,26 +118,28 @@ export function QueueTab({ onEdit }: { onEdit: (job: any) => void }) {
             <div className="flex gap-2">
               <button 
                 onClick={() => onEdit(job)}
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-700 hover:bg-gray-600 text-white rounded text-sm transition-all duration-150 active:scale-95 border border-gray-600"
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-800 hover:bg-gray-700 text-gray-300 rounded text-sm transition-all duration-150 active:scale-95"
               >
-                <Edit2 className="w-3.5 h-3.5" /> Edit
+                <Edit3 className="w-3.5 h-3.5" /> Edit
               </button>
               <button 
                 onClick={() => sendMutation.mutate(job)}
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white rounded text-sm transition-all duration-150 active:scale-95"
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-800 hover:bg-gray-700 text-gray-300 rounded text-sm transition-all duration-150 active:scale-95"
               >
                 <Send className="w-3.5 h-3.5" /> Send Now
               </button>
               <button 
                 onClick={() => deleteMutation.mutate(job.id)}
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-red-600/20 text-red-400 hover:bg-red-600 hover:text-white border border-red-600/50 rounded text-sm transition-all duration-150 active:scale-95"
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-800 hover:bg-gray-700 text-gray-300 border border-gray-700/50 rounded text-sm transition-all duration-150 active:scale-95"
               >
                 <X className="w-3.5 h-3.5" /> Cancel
               </button>
             </div>
           </div>
-          <div className="text-sm text-gray-300 bg-gray-900/50 p-3 rounded border border-gray-700/50 whitespace-pre-wrap">
+          <div className="text-sm text-gray-300 bg-gray-800/30 p-3 rounded-lg border border-gray-800/50 whitespace-pre-wrap">
             {job.text}
+          </div>
+          </div>
           </div>
         </div>
       ))}

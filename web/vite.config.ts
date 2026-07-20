@@ -5,24 +5,15 @@ import tailwindcss from '@tailwindcss/vite'
 export default defineConfig({
   plugins: [react(), tailwindcss()],
   build: {
-    outDir: '../dist',
+    outDir: 'dist',
     emptyOutDir: true,
-    lib: {
-      entry: 'src/main.tsx',
-      name: 'ScheduledMessages',
-      formats: ['iife'],
-      fileName: () => 'index.js'
-    },
-    rollupOptions: {
-      external: ['react'],
-      output: {
-        globals: {
-          react: 'window.__HERMES_PLUGIN_SDK__.React'
-        }
+  },
+  server: {
+    proxy: {
+      '/api': {
+        target: 'http://127.0.0.1:9119',
+        changeOrigin: true,
       }
     }
-  },
-  define: {
-    'process.env': {}
   }
 })

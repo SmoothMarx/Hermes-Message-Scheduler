@@ -1,0 +1,22 @@
+services:
+  scheduler:
+    build: .
+    container_name: message-scheduler
+    restart: unless-stopped
+    ports:
+      - "9119:9119"
+    volumes:
+      - scheduler_data:/app/data
+      - ./uploads:/tmp/hermes_scheduler_media
+    environment:
+      - MESSAGE_SCHEDULER_DB=/app/data/scheduler.db
+      - PORT=9119
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN:-}
+      - HERMES_BRIDGE_URL=${HERMES_BRIDGE_URL:-http://host.docker.internal:9190}
+      - SCHEDULER_BASE_URL=${SCHEDULER_BASE_URL:-http://localhost:9119}
+      - BIRTHDAY_DB=${BIRTHDAY_DB:-}
+      - BEEPER_TOKEN=${BEEPER_TOKEN:-}
+      - BEEPER_URL=${BEEPER_URL:-}
+
+volumes:
+  scheduler_data:

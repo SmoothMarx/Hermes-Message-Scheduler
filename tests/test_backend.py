@@ -1,85 +1,121 @@
 import pytest
 import sys
 import os
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 from fastapi.testclient import TestClient
 import sqlite3
 
 # Set test DB before importing api
-os.environ["MESSAGE_SCHEDULER_DB"] = "test_scheduler.db"
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+import tempfile
 
-import api
+# Use a temp file for testing (":memory:" creates a new DB per connection)
+os.environ["MESSAGE_SCHEDULER_DB"] = tempfile.mktemp(suffix=".db")
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 from api import app, init_db
-
-@pytest.fixture(autouse=True)
-def setup_teardown():
-    init_db()
-    yield
-    if os.path.exists("test_scheduler.db"):
-        os.remove("test_scheduler.db")
 
 client = TestClient(app)
 
-@patch("api.subprocess.run")
-def test_schedule_message_cron_args(mock_subprocess_run):
-    mock_res = MagicMock()
-    mock_res.returncode = 0
-    mock_res.stdout = "Created job"
-    mock_res.stderr = ""
-    mock_subprocess_run.return_value = mock_res
-    
+# Ensure DB is initialized for TestClient (startup events don't always fire)
+init_db()
+
+
+def cleanup():
+    db_path = os.environ.get("MESSAGE_SCHEDULER_DB", "")
+    if db_path and os.path.exists(db_path):
+        os.remove(db_path)
+
+def test_schedule_and_outgoing():
+    """Schedule a message and verify it appears in outgoing."""
     payload = {
-        "person": "John Doe",
+        "person": "Test User",
         "network": "telegram",
-        "time": "2026-06-20T09:00:00Z",
-        "text": "Hello John!"
+        "time": "2026-07-21T09:00:00Z",
+        "text": "Hello from the scheduler!"
     }
-    
-    response = client.post("/api/plugins/scheduled-messages/schedule", json=payload)
-    assert response.status_code == 200
-    assert response.json() == {"status": "scheduled"}
-    
-    # Verify subprocess.run was called with correct arguments
-    mock_subprocess_run.assert_called_once()
-    args_called = mock_subprocess_run.call_args[0][0]
-    
-    # Assert 'hermes cron create'
-    assert args_called[0:3] == ["hermes", "cron", "create"]
-    
-    # Assert '--name' comes before the time string
-    assert args_called[3] == "--name"
-    assert args_called[4].startswith("send_msg_")
-    assert args_called[5] == "2026-06-20T09:00:00Z"
-    assert args_called[6] == "hermes send 'telegram:John Doe' 'Hello John!'"
 
-@patch("api.subprocess.run")
-def test_send_now_subprocess(mock_subprocess_run):
-    mock_res = MagicMock()
-    mock_res.returncode = 0
-    mock_subprocess_run.return_value = mock_res
+    # Schedule
+    resp = client.post("/api/schedule", json=payload)
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["status"] == "scheduled"
+    job_id = data["id"]
 
+    # Jobs list
+    resp = client.get("/api/jobs")
+    assert resp.status_code == 200
+    jobs = resp.json()["jobs"]
+    assert len(jobs) == 1
+    assert jobs[0]["person"] == "Test User"
+
+    # Cancel
+    resp = client.delete(f"/api/jobs/{job_id}")
+    assert resp.status_code == 200
+    assert resp.json()["status"] == "cancelled"
+
+def test_send_now():
+    """Send immediately should queue as dispatched."""
     payload = {
         "person": "Jane",
         "network": "discord",
-        "time": "2026-06-19T10:00:00Z",
-        "text": "Test now"
+        "time": "2026-07-20T10:00:00Z",
+        "text": "Immediate test"
     }
+    resp = client.post("/api/send", json=payload)
+    assert resp.status_code == 200
+    assert resp.json()["status"] == "queued_for_immediate"
 
-    response = client.post("/api/plugins/scheduled-messages/send", json=payload)
-    assert response.status_code == 200
+def test_templates():
+    """Create, list, and delete templates."""
+    # Create
+    resp = client.post("/api/templates", json={
+        "name": "Morning Greeting",
+        "person": "Test User",
+        "network": "telegram",
+        "text": "Good morning!"
+    })
+    assert resp.status_code == 200
+    tpl_id = resp.json()["id"]
 
-    mock_subprocess_run.assert_called_once()
-    args_called = mock_subprocess_run.call_args[0][0]
-    assert args_called == ["hermes", "send", "discord:Jane", "Test now"]
+    # List
+    resp = client.get("/api/templates")
+    assert resp.status_code == 200
+    assert len(resp.json()["templates"]) == 1
 
-    # Verify history is saved
-    conn = sqlite3.connect("test_scheduler.db")
-    conn.row_factory = sqlite3.Row
-    cursor = conn.cursor()
-    cursor.execute("SELECT * FROM history")
-    rows = cursor.fetchall()
-    assert len(rows) == 1
-    assert rows[0]["person"] == "Jane"
-    assert rows[0]["status"] == "Sent"
-    conn.close()
+    # Delete
+    resp = client.delete(f"/api/templates/{tpl_id}")
+    assert resp.status_code == 200
+
+def test_history():
+    """Send a message and verify it shows in history when reported."""
+    # Use a unique person name to avoid cross-test pollution
+    person = "HistoryTest_" + str(int(__import__("time").time()))
+
+    # Schedule
+    client.post("/api/schedule", json={
+        "person": person,
+        "network": "telegram",
+        "time": "2024-01-01T09:00:00Z",
+        "text": "Test message"
+    })
+
+    # Get outgoing (trigger dispatch)
+    resp = client.get("/api/outgoing")
+    jobs = [j for j in resp.json()["outgoing"] if j["person"] == person]
+    assert len(jobs) == 1
+
+    # Report as sent
+    resp = client.post(f"/api/outgoing/{jobs[0]['id']}/result", json={"status": "sent"})
+    assert resp.status_code == 200
+
+    # Verify history
+    resp = client.get("/api/history")
+    history = [h for h in resp.json()["history"] if h["person"] == person]
+    assert len(history) == 1
+    assert history[0]["person"] == person
+    assert history[0]["status"] == "sent"
+
+def test_contacts():
+    resp = client.get("/api/contacts")
+    assert resp.status_code == 200
+    assert "platforms" in resp.json()

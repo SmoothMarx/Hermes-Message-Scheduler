@@ -48,39 +48,41 @@ export function App() {
   return (
     <ErrorBoundary>
       <QueryClientProvider client={queryClient}>
-        <div className="p-6 max-w-4xl mx-auto text-[var(--text-primary)]">
-          <h2 className="text-2xl font-bold mb-6 flex items-center gap-2">
-            <Clock className="w-6 h-6" />
-            Scheduled Messages
-          </h2>
-          
-          <div className="flex space-x-1 mb-6 border-b border-[var(--background-base)]/20 pb-0">
-            {[
-              { id: 'compose', label: 'Compose', icon: Clock },
-              { id: 'queue', label: 'Queue', icon: List },
-              { id: 'history', label: 'History', icon: History },
-              { id: 'settings', label: 'Settings', icon: Settings }
-            ].map(tab => (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id as any)}
-                className={`flex items-center gap-2 px-4 py-2 capitalize font-medium rounded-t-md transition-all duration-150 active:scale-95 active:brightness-90 transform ${
-                  activeTab === tab.id 
-                    ? 'bg-gray-800 text-white border-b-2 border-blue-500' 
-                    : 'text-gray-400 hover:bg-gray-800 hover:text-white'
-                }`}
-              >
-                <tab.icon className="w-4 h-4" />
-                {tab.label}
-              </button>
-            ))}
-          </div>
+        <div className="bg-gray-950 min-h-screen">
+          <div className="max-w-4xl mx-auto p-6 text-gray-100">
+            <h2 className="text-xl font-semibold mb-6 flex items-center gap-2 text-gray-300">
+              <Clock className="w-5 h-5 text-blue-400" />
+              Scheduled Messages
+            </h2>
+              
+            <div className="flex space-x-1 mb-6 border-b border-gray-800/40 pb-0">
+              {[
+                { id: 'compose', label: 'Compose', icon: Clock },
+                { id: 'queue', label: 'Queue', icon: List },
+                { id: 'history', label: 'History', icon: History },
+                { id: 'settings', label: 'Settings', icon: Settings }
+              ].map(tab => (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id as any)}
+                  className={`flex items-center gap-2 px-4 py-2.5 capitalize font-medium text-sm transition-all ${
+                    activeTab === tab.id 
+                      ? 'text-blue-400 border-b-2 border-blue-500' 
+                      : 'text-gray-500 border-b-2 border-transparent hover:text-gray-300'
+                  }`}
+                >
+                  <tab.icon className="w-4 h-4" />
+                  {tab.label}
+                </button>
+              ))}
+            </div>
 
-          <div className="bg-gray-900 rounded-b-md p-6 border border-gray-800 shadow-xl">
-            {activeTab === 'compose' && <ComposeTab editJob={editJob} onClearEdit={() => setEditJob(null)} onScheduled={() => setActiveTab('queue')} />}
-            {activeTab === 'queue' && <QueueTab onEdit={handleEdit} />}
-            {activeTab === 'history' && <HistoryTab onRetry={handleEdit} />}
-            {activeTab === 'settings' && <SettingsTab />}
+            <div className="rounded-xl p-6 border border-gray-800/50 shadow-sm bg-gray-900">
+              {activeTab === 'compose' && <ComposeTab editJob={editJob} onClearEdit={() => setEditJob(null)} onScheduled={() => setActiveTab('queue')} />}
+              {activeTab === 'queue' && <QueueTab onEdit={handleEdit} />}
+              {activeTab === 'history' && <HistoryTab onRetry={handleEdit} />}
+              {activeTab === 'settings' && <SettingsTab />}
+            </div>
           </div>
         </div>
       </QueryClientProvider>

@@ -1,3 +1,7 @@
 @import "tailwindcss";
 
-/* Ensure our styles don't heavily override Hermes native variables if possible, but allow Tailwind to work. */
+body {
+  background: #111827;
+  color: #e5e7eb;
+  min-height: 100vh;
+}
