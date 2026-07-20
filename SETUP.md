@@ -19,7 +19,7 @@ cp .env.example .env
 docker compose up -d
 ```
 
-Open **http://localhost:9119** and start scheduling messages.
+Open **http://localhost:9120** and start scheduling messages.
 
 ---
 
@@ -39,7 +39,7 @@ Everything else (SQLite, Node.js, Python, React frontend) is baked into the Dock
 
 1. Open Telegram and search for **@BotFather**
 2. Send `/newbot` and follow the prompts
-3. BotFather will give you a token like: `7234567890:AAHdqTcvCH1vGWJxfSeofSAs0K5PALDsaw`
+3. BotFather will give you a token — it'll look something like `YOUR_BOT_TOKEN_HERE`
 4. Copy this token — you'll need it for `.env`
 
 > **Why Telegram?** The scheduler can send directly via the Telegram Bot API without any extra infrastructure. Other platforms (WhatsApp, Beeper) need additional bridge services — see the Advanced Setup section.
@@ -59,16 +59,16 @@ nano .env   # or vim, code, etc.
 
 ```ini
 # You MUST set this for messages to send
-TELEGRAM_BOT_TOKEN=7234567890:AAHdqTcvCH1vGWJxfSeofSAs0K5PALDsaw
+TELEGRAM_BOT_TOKEN=YOUR_BOT_TOKEN_HERE
 ```
 
 ### Optional configs
 
 ```ini
 # Public URL of your scheduler (for file attachments)
-# If running locally: http://localhost:9119
+# If running locally: http://localhost:9120
 # If behind a reverse proxy: https://scheduler.yourdomain.com
-SCHEDULER_BASE_URL=http://localhost:9119
+SCHEDULER_BASE_URL=http://localhost:9120
 
 # Hermes bridge — see Advanced Setup
 # HERMES_BRIDGE_URL=http://host.docker.internal:9190
@@ -89,14 +89,14 @@ docker compose up -d
 Check it's running:
 
 ```bash
-curl http://localhost:9119/
+curl http://localhost:9120/
 # Should return 200 — the React SPA loads here
 
-curl http://localhost:9119/api/platforms/status
+curl http://localhost:9120/api/platforms/status
 # Shows which messaging platforms are connected
 ```
 
-Open **http://localhost:9119** in your browser. You'll see the Compose tab with:
+Open **http://localhost:9120** in your browser. You'll see the Compose tab with:
 - Recipient autocomplete
 - Network dropdown (Telegram, WhatsApp, etc.)
 - Date/time picker
@@ -117,7 +117,7 @@ In the **Settings** tab, click **Add Contact** and fill in the name, platform, a
 ### Option B: Import via API
 
 ```bash
-curl -X POST http://localhost:9119/api/contacts/import \
+curl -X POST http://localhost:9120/api/contacts/import \
   -H "Content-Type: application/json" \
   -d '{
     "source": "manual",
@@ -155,7 +155,7 @@ The message appears in the **Queue** tab with a countdown timer. When the time c
 ```
 User's Browser                  Docker Container                   External
 ┌─────────────┐               ┌──────────────────────┐        ┌──────────────┐
-│  React SPA   │ ◄─HTTP:9119─►│   FastAPI Backend    │ ──────►│ Telegram Bot │
+│  React SPA   │ ◄─HTTP:9120─►│   FastAPI Backend    │ ──────►│ Telegram Bot │
 │  (Compose,   │              │   + SQLite Queue     │  API   │   API        │
 │   Queue,     │              │                      │        └──────────────┘
 │   History,   │              │  ┌──────────────────┐│
@@ -471,7 +471,7 @@ server {
     server_name scheduler.yourdomain.com;
 
     location / {
-        proxy_pass http://127.0.0.1:9119;
+        proxy_pass http://127.0.0.1:9120;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_http_version 1.1;
@@ -488,7 +488,7 @@ server {
 | Variable | Required | Default | Description |
 |---|---|---|---|
 | `TELEGRAM_BOT_TOKEN` | **Yes** | — | Telegram Bot API token for sending |
-| `SCHEDULER_BASE_URL` | No | `http://localhost:9119` | Public URL for file attachment serving |
+| `SCHEDULER_BASE_URL` | No | `http://localhost:9120` | Public URL for file attachment serving |
 | `HERMES_BRIDGE_URL` | No | `http://host.docker.internal:9190` | Bridge for multi-platform sends |
 | `BIRTHDAY_DB` | No | — | Path to birthday contacts SQLite DB |
 | `BEEPER_TOKEN` | No | — | Beeper Desktop API token |
