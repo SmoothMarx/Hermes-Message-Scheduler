@@ -1,0 +1,15 @@
+{
+  "name": "message-scheduler",
+  "label": "Messages",
+  "description": "Scheduled messages: compose, queue, history and dispatcher health.",
+  "icon": "MessageSquare",
+  "version": "1.0.0",
+  "tab": {
+    "path": "/message-scheduler",
+    "position": "after:skills"
+  },
+  "slots": [],
+  "entry": "dist/index.js",
+  "css": "dist/style.css",
+  "api": "plugin_api.py"
+}

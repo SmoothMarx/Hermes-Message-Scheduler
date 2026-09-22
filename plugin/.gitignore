@@ -1,0 +1,14 @@
+# Data lives outside the plugin dir by default ($HERMES_HOME/plugin-data/),
+# but a legacy install or an explicit MESSAGE_SCHEDULER_DATA_DIR can put it here.
+data/
+msgscheduler/data/
+
+# Python
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# Never commit credentials: the Telegram token belongs in ~/.hermes/scripts/.env,
+# read by the host bridge — the plugin never stores secrets of its own.
+.env
+*.token
