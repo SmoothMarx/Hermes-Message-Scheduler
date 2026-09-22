@@ -50,14 +50,26 @@ Two equivalent routes. Both land the package at
 `$HERMES_HOME/plugins/message-scheduler/` — the folder name is load-bearing (it keys
 the toolset, the REST mount and the dashboard tab).
 
-**A. Hermes' own installer** (needs the branch merged to the repo's default branch —
-the installer clones `HEAD`):
+**A. Hermes' own installer** (works once the plugin is on the repo's default branch —
+the installer clones `HEAD`). Three accepted ways to name this plugin, all landing the
+same install:
 
 ```bash
-hermes plugins install SmoothMarx/Hermes-Message-Scheduler#plugin --enable
+hermes plugins install SmoothMarx/Hermes-Message-Scheduler#plugin --enable      # CLI: #fragment = subdir
+hermes plugins install SmoothMarx/Hermes-Message-Scheduler/plugin --enable     # path form: owner/repo/subdir
+hermes plugins install 'https://github.com/SmoothMarx/Hermes-Message-Scheduler/tree/HEAD/plugin'
 ```
 
-The `#plugin` fragment is what selects the `plugin/` subdirectory inside the repo.
+**Use the path form in the desktop app's install field, not the `#` form.** The app's
+own URL parser (`apps/desktop/src/lib/plugin-source-urls.ts`) strips `#…` from
+github.com URLs before cloning, so `…#plugin` resolves to the repository *root* — which
+is the Docker app, not a plugin — and the probe answers
+`No agent or desktop plugin artifacts found in this repository.` The Python CLI *does*
+honour the fragment, which is why the same string works there. The path form is accepted
+by both.
+
+Every route lands the package at `$HERMES_HOME/plugins/message-scheduler/` — the folder
+name is load-bearing (it keys the toolset, the REST mount and the dashboard tab).
 
 **B. This package's installer** (works from a checkout, any branch):
 
@@ -194,6 +206,7 @@ opts out entirely.
 
 | Symptom | Cause |
 |---|---|
+| `No agent or desktop plugin artifacts found in this repository.` | the identifier resolved to the repo ROOT (which is the Docker app). In the desktop app's install field use `SmoothMarx/Hermes-Message-Scheduler/plugin` — that UI strips a `#subdir` fragment, the CLI does not |
 | Tab missing after install | web server not restarted, or the plugin dir is not named `message-scheduler` |
 | "Backend not reachable" in the tab/page | REST half not mounted — check the dashboard log for `message-scheduler` import errors |
 | Desktop page absent | the desktop half is opt-in: Settings → Plugins |
