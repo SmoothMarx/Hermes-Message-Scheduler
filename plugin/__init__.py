@@ -62,14 +62,20 @@ def register(ctx) -> None:
 def _register_skill(ctx) -> None:
     """Expose the bundled usage skill, when this Hermes build supports it.
 
-    Older builds have no ctx.register_skill; the skills/ folder in the plugin
-    directory still ships, so the failure mode is "documented but not auto-loaded"
-    rather than an error at startup.
+    ``ctx.register_skill(name, path)`` takes the PATH (it reads and validates the
+    file itself — passing the markdown text raises inside the host and the skill
+    silently fails to register). The skills/ folder also ships on disk, so on
+    older builds the failure mode is "documented but not auto-loaded" rather than
+    an error at startup.
     """
     skill_md = SKILL_DIR / "SKILL.md"
     if not skill_md.is_file() or not hasattr(ctx, "register_skill"):
         return
     try:
-        ctx.register_skill("message-scheduler", skill_md.read_text())
+        ctx.register_skill(
+            "message-scheduler",
+            skill_md,
+            description="Schedule, cancel or review messages the scheduler sends later.",
+        )
     except Exception as exc:
         log.warning("skill not registered: %s", exc)

@@ -50,7 +50,7 @@ def _manifest_yaml() -> dict:
     under an env entry for an env var of its own.
     """
     text = (PLUGIN_DIR / "plugin.yaml").read_text()
-    data: dict = {"provides_tools": [], "config_schema": {}, "env": {}}
+    data: dict = {"provides_tools": [], "config_schema": {}, "env": {}, "optional_env": {}, "requires_env": {}}
     section = None
     child_indent = None
     for raw in text.splitlines():
@@ -69,11 +69,16 @@ def _manifest_yaml() -> dict:
         if section == "provides_tools" and line.startswith("- "):
             data["provides_tools"].append(line[2:].strip())
             continue
-        if section in ("config_schema", "env") and ":" in line:
+        if section in ("config_schema", "env", "optional_env", "requires_env") and ":" in line:
             if child_indent is None:
                 child_indent = indent
             if indent == child_indent:
-                data[section][line.split(":")[0].strip()] = True
+                if line.startswith("- name:"):
+                    # list form: ``- name: HERMES_BRIDGE_URL`` → the env var NAME
+                    data[section][line.split(":", 1)[1].strip().strip('"')] = True
+                elif not line.startswith("- "):
+                    # mapping form: ``KEY:`` under the section
+                    data[section][line.split(":", 1)[0].strip()] = True
     return data
 
 
@@ -131,23 +136,82 @@ def test_config_schema_matches_the_keys_the_code_reads():
 
 
 def test_declared_env_vars_are_the_ones_the_code_honours():
-    declared = set(_manifest_yaml()["env"])
+    manifest = _manifest_yaml()
+    declared = set(manifest["env"]) | set(manifest["optional_env"])
     honoured = set(config.ENV_OVERRIDES.values())
     assert declared <= honoured, f"documented but ignored: {declared - honoured}"
+    # Anything the code honours should be documented too, so a user can find it.
+    assert honoured <= declared, f"honoured but undocumented: {honoured - declared}"
+
+
+def test_manifest_only_uses_fields_this_hermes_understands():
+    """Unknown top-level fields are ignored with a warning on EVERY plugin load.
+
+    Read the host's own allow-list rather than a copy of it, so the check follows
+    the installed Hermes instead of drifting from it.
+    """
+    manifest_source = _find_hermes_manifest_module()
+    if manifest_source is None:
+        pytest.skip("Hermes sources not present on this machine")
+    assert manifest_source is not None
+    known = _parse_known_manifest_fields(manifest_source)
+    if not known:
+        pytest.fail("could not parse _KNOWN_MANIFEST_FIELDS — the guard would be blind")
+
+    ours = set(_top_level_yaml_keys((PLUGIN_DIR / "plugin.yaml").read_text()))
+    unknown = sorted(ours - known)
+    assert not unknown, f"plugin.yaml would trigger 'unknown manifest field(s)' warnings: {unknown}"
+
+
+def _find_hermes_manifest_module() -> Path | None:
+    for candidate in (
+        Path.home() / ".hermes" / "hermes-agent" / "hermes_cli" / "plugins_manifest.py",
+        Path("/home/smoothmarx/.hermes/hermes-agent/hermes_cli/plugins_manifest.py"),
+    ):
+        if candidate.is_file():
+            return candidate
+    return None
+
+
+def _parse_known_manifest_fields(path: Path) -> set[str]:
+    text = path.read_text()
+    match = re.search(r"_KNOWN_MANIFEST_FIELDS[^=]*=\s*\{(.*?)\}", text, re.S)
+    if not match:
+        return set()
+    return set(re.findall(r"\"([a-z_]+)\"", match.group(1)))
+
+
+def _top_level_yaml_keys(text: str) -> list[str]:
+    return [
+        line.split(":")[0].strip()
+        for line in text.splitlines()
+        if line and not line[0].isspace() and not line.startswith("#") and ":" in line
+    ]
 
 
 def test_register_wires_every_tool_and_the_skill(tmp_path, monkeypatch):
     monkeypatch.setenv("MESSAGE_SCHEDULER_DATA_DIR", str(tmp_path / "data"))
     module = _load_entry_module()
     calls: list[dict] = []
-    skills: list[str] = []
+    skills: list[tuple] = []
 
     class FakeCtx:
+        """Mirrors the real ctx signatures — a wrong call shape must fail here.
+
+        The host's ``register_skill(name, path, description, frontmatter)`` reads the
+        file itself; handing it markdown text raises inside the host and the skill
+        silently never registers (observed as a warning, not an error).
+        """
+
         def register_tool(self, **kwargs):
             calls.append(kwargs)
 
-        def register_skill(self, name, content):
-            skills.append(name)
+        def register_skill(self, name, path, description="", frontmatter=None):
+            if not hasattr(path, "exists"):
+                raise TypeError("register_skill expects a Path, not text")
+            if not path.exists():
+                raise FileNotFoundError(f"SKILL.md not found at {path}")
+            skills.append((name, path, description))
 
     module.register(FakeCtx())
 
@@ -157,7 +221,9 @@ def test_register_wires_every_tool_and_the_skill(tmp_path, monkeypatch):
     for call in calls:
         assert callable(call["handler"]), call["name"]
         assert call["schema"]["description"]
-    assert skills == [_plugin_id()]
+    assert [s[0] for s in skills] == [_plugin_id()]
+    assert skills[0][1].name == "SKILL.md" and skills[0][1].is_file()
+    assert skills[0][2], "the host shows this description; it must not be empty"
 
 
 def test_register_survives_a_ctx_without_skill_support(tmp_path, monkeypatch):

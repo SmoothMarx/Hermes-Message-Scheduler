@@ -13,7 +13,8 @@ api_version: 1
 kind: standalone
 requires_hermes: ">=0.19"
 platforms: [linux, macos]
-dependencies: []
+# Nothing is mandatory: every dependency is stdlib and the plugin works unconfigured.
+python_dependencies: []
 
 provides_tools:
   - messages_schedule
@@ -64,14 +65,23 @@ config_schema:
     description: "Zone used to interpret timestamps that carry no UTC offset."
     required: false
 
-env:
-  # Secrets/proxies only. Paths and behaviour belong in config.yaml (see above).
-  HERMES_BRIDGE_URL:
+# All optional — the plugin runs with its defaults and simply reports an
+# unreachable bridge rather than refusing to load. Secrets (the Telegram token)
+# belong to the host bridge, not here.
+requires_env: []
+optional_env:
+  - name: HERMES_BRIDGE_URL
     description: "Overrides bridge_url (useful when the bridge is not on loopback)."
-    required: false
-  MESSAGE_SCHEDULER_DB:
-    description: "Overrides the SQLite path — set this to the existing container DB to adopt prior data."
-    required: false
-  MESSAGE_SCHEDULER_DATA_DIR:
+    category: messaging
+  - name: HERMES_BRIDGE_TIMEOUT
+    description: "Seconds to wait for the host bridge before recording a send failure."
+    category: messaging
+  - name: MESSAGE_SCHEDULER_DB
+    description: "Overrides the SQLite path — set it to the existing container DB to adopt prior data."
+    category: messaging
+  - name: MESSAGE_SCHEDULER_DATA_DIR
     description: "Overrides the plugin's data directory (DB, media, settings.json)."
-    required: false
+    category: messaging
+  - name: MESSAGE_SCHEDULER_MEDIA
+    description: "Overrides the attachment directory."
+    category: messaging
