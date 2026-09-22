@@ -87,6 +87,24 @@ if [[ -n "$PY_EXE" ]]; then
 fi
 
 echo
+echo "== desktop half through the app's real loader =="
+# Opt out with MS_SKIP_DESKTOP_HARNESS=1 (it needs the app's node_modules, ~8s).
+if [[ "${MS_SKIP_DESKTOP_HARNESS:-0}" == "1" ]]; then
+  echo "-- desktop loader harness: SKIP (MS_SKIP_DESKTOP_HARNESS=1)"
+elif harness_out="$("$TESTS_DIR/run_desktop_harness.sh" 2>&1)"; then
+  echo "-- desktop loader harness: PASS"
+else
+  rc=$?
+  if [[ $rc -eq 2 ]]; then
+    echo "-- desktop loader harness: SKIP (desktop app or its node_modules unavailable)"
+  else
+    echo "-- desktop loader harness: FAIL"
+    printf '%s\n' "$harness_out" | tail -20
+    status=1
+  fi
+fi
+
+echo
 if [[ $status -eq 0 ]]; then
   echo "ALL CHECKS PASSED"
 else

@@ -159,19 +159,36 @@ after. `--dry-run` touches nothing.
 ./plugin/tests/run.sh
 ```
 
-Four checks, all runnable without the desktop app or a dashboard running:
+Five checks. Four run anywhere (no desktop app, no dashboard, no container); the fifth
+runs the real thing when the app is available and skips cleanly when it is not:
 
 | Check | What it pins |
 |---|---|
-| `pytest plugin/tests` | queue/dispatch/media/config behaviour; REST routes mounted the way the backend mounts them; cross-surface contracts (ids, tool list, config keys, folder name) |
+| `pytest plugin/tests` | queue/dispatch/media/config behaviour; REST routes mounted the way the backend mounts them; cross-surface contracts (ids, tool list, config keys, folder name); the app's own route surface (no silent drops) |
 | `node --test tests/desktop_plugin.test.mjs` | the desktop page registers a route/nav/chip and renders ready/loading/error states; cancelling calls `DELETE /jobs/<id>` |
 | `node --test tests/dashboard_bundle.test.mjs` | the shipped bundle registers, stays inside its own API namespace, renders ready/error states |
 | `tests/check_sdk_exports.py` | every `@hermes/plugin-sdk` name the desktop half imports still exists in the installed app (catches SDK drift) |
+| `tests/run_desktop_harness.sh` | the desktop half through the **app's own runtime loader** — import allow-list, blob import, `register(createPluginContext(...))`, the real SDK and registry, and a real jsdom render of the page |
 
 The JS halves are exercised with the SDK stubbed and React replaced by a ~40-line
 mini-renderer, which is what makes "the page renders the ready state" a test rather
 than a hope. Python tests never touch the network: the bridge is a fake injected at
 one seam (`core._bridge_transport`).
+
+The last row is different in kind — it is the only check that cannot be faked, because
+it *is* the host's load path. It copies a probe into `apps/desktop/src/contrib/`, runs it
+with the app's own vitest project, and removes it afterwards:
+
+```bash
+./plugin/tests/run_desktop_harness.sh                     # the plugin in this repo
+MS_DESKTOP_PLUGIN_JS=$HERMES_HOME/plugins/message-scheduler/desktop/plugin.js \
+  ./plugin/tests/run_desktop_harness.sh                   # an installed copy
+```
+
+It needs the desktop app's sources **with** `node_modules` (a release install ships a
+pruned tree — `npm ci` at the repo root once). Without that it prints `SKIP` and exits
+`2`, which `run.sh` reports as a skip, not a failure. `MS_SKIP_DESKTOP_HARNESS=1`
+opts out entirely.
 
 ## Troubleshooting
 
@@ -180,6 +197,7 @@ one seam (`core._bridge_transport`).
 | Tab missing after install | web server not restarted, or the plugin dir is not named `message-scheduler` |
 | "Backend not reachable" in the tab/page | REST half not mounted — check the dashboard log for `message-scheduler` import errors |
 | Desktop page absent | the desktop half is opt-in: Settings → Plugins |
+| Agent tools missing on the first launch of a brand-new `HERMES_HOME` | plugin toolsets are read from the previous launch's persisted key set; the next launch has them |
 | Messages never send | no cron entry for `dispatch_due.py` (nothing else sends on a schedule) |
 | Sends fail with connection errors | host bridge not running on `$HERMES_BRIDGE_URL` (default `127.0.0.1:9190`) |
 | A message is missing entirely | check history: `missed` means the grace window decided *not* to send it late |
