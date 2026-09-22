@@ -7,7 +7,7 @@ test.describe('Message Scheduler Plugin E2E', () => {
   
   test.beforeEach(async ({ page }) => {
     // Navigate to the dashboard or plugin page
-    await page.goto('http://127.0.0.1:9119/');
+    await page.goto('http://127.0.0.1:9120/');
   });
 
   test('UI mounts and shows correct tab highlighting', async ({ page }) => {
@@ -33,7 +33,7 @@ test.describe('Message Scheduler Plugin E2E', () => {
   });
 
   test('Rectangle hover states on Settings buttons', async ({ page }) => {
-    await page.goto('http://127.0.0.1:9119/');
+    await page.goto('http://127.0.0.1:9120/');
     
     // Go to Settings tab
     const settingsTab = page.locator('button:has-text("Settings")');

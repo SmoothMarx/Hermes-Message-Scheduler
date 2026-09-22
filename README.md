@@ -18,7 +18,7 @@ Schedule messages across Telegram, WhatsApp, and other platforms from a clean we
 docker compose up -d
 ```
 
-Open http://localhost:9119 and start scheduling messages.
+Open http://localhost:9120 and start scheduling messages.
 
 ## Configuration
 
@@ -28,7 +28,7 @@ All config is via environment variables. Copy `.env.example` to `.env` and fill 
 |---|---|---|---|
 | `TELEGRAM_BOT_TOKEN` | **Yes** | — | Telegram Bot API token for sending messages |
 | `HERMES_BRIDGE_URL` | No | `http://host.docker.internal:9190` | Host-side bridge for multi-platform sends |
-| `SCHEDULER_BASE_URL` | No | `http://localhost:9119` | Public URL for file attachment serving |
+| `SCHEDULER_BASE_URL` | No | `http://localhost:9120` | Public URL for file attachment serving |
 | `BIRTHDAY_DB` | No | — | Path to birthday contacts SQLite DB |
 | `BEEPER_TOKEN` | No | — | Beeper Desktop API token for contact sync |
 | `BEEPER_URL` | No | `http://127.0.0.1:23373` | Beeper Desktop API URL |

@@ -1,0 +1,87 @@
+# Hermes agent-plugin manifest — Message Scheduler.
+#
+# The folder MUST be named "message-scheduler": the plugin id keys the toolset,
+# the REST mount point (/api/plugins/message-scheduler/) and the desktop half's
+# id, and config lives under plugins.entries.message-scheduler.
+name: message-scheduler
+label: Message Scheduler
+version: 1.0.0
+description: "Schedule messages across Telegram, WhatsApp, Signal, iMessage, email and Beeper-bridged networks — with an agent toolset, a dashboard tab, a desktop page and a model-free dispatcher."
+author: SmoothMarx
+manifest_version: 2
+api_version: 1
+kind: standalone
+requires_hermes: ">=0.19"
+platforms: [linux, macos]
+# Nothing is mandatory: every dependency is stdlib and the plugin works unconfigured.
+python_dependencies: []
+
+provides_tools:
+  - messages_schedule
+  - messages_send_now
+  - messages_list
+  - messages_cancel
+  - messages_history
+  - messages_find_contact
+  - messages_dispatch
+  - messages_status
+
+# Keys under plugins.entries.message-scheduler.settings. Behaviour only — the
+# bridge URL is a location, not a credential; secrets stay in .env.
+config_schema:
+  bridge_url:
+    type: str
+    default: "http://127.0.0.1:9190"
+    description: "Host bridge that performs the actual sends (hermes_bridge.py)."
+    required: false
+  bridge_timeout:
+    type: int
+    default: 15
+    description: "Seconds to wait for the bridge before recording a failure."
+    required: false
+  grace_seconds:
+    type: int
+    default: 300
+    description: "Past-due window: something older than this (and created before it) is recorded as 'missed' instead of sent late."
+    required: false
+  dispatch_limit:
+    type: int
+    default: 10
+    description: "Messages claimed per dispatcher run."
+    required: false
+  history_limit:
+    type: int
+    default: 200
+    description: "History rows kept; older rows are pruned as new ones land."
+    required: false
+  media_retention_days:
+    type: int
+    default: 30
+    description: "Uploaded attachments older than this are deleted by the hourly sweep."
+    required: false
+  timezone:
+    type: str
+    default: "UTC"
+    description: "Zone used to interpret timestamps that carry no UTC offset."
+    required: false
+
+# All optional — the plugin runs with its defaults and simply reports an
+# unreachable bridge rather than refusing to load. Secrets (the Telegram token)
+# belong to the host bridge, not here.
+requires_env: []
+optional_env:
+  - name: HERMES_BRIDGE_URL
+    description: "Overrides bridge_url (useful when the bridge is not on loopback)."
+    category: messaging
+  - name: HERMES_BRIDGE_TIMEOUT
+    description: "Seconds to wait for the host bridge before recording a send failure."
+    category: messaging
+  - name: MESSAGE_SCHEDULER_DB
+    description: "Overrides the SQLite path — set it to the existing container DB to adopt prior data."
+    category: messaging
+  - name: MESSAGE_SCHEDULER_DATA_DIR
+    description: "Overrides the plugin's data directory (DB, media, settings.json)."
+    category: messaging
+  - name: MESSAGE_SCHEDULER_MEDIA
+    description: "Overrides the attachment directory."
+    category: messaging

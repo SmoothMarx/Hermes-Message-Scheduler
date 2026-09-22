@@ -29,10 +29,10 @@ COPY --from=frontend-build /app/web/dist /app/web/dist
 # Create data directory for SQLite
 RUN mkdir -p /app/data
 
-EXPOSE 9119
+EXPOSE 9120
 
 ENV MESSAGE_SCHEDULER_DB=/app/data/scheduler.db
 ENV MESSAGE_SCHEDULER_STATIC=/app/web/dist
-ENV PORT=9119
+ENV PORT=9120
 
 CMD ["python3", "api.py"]
