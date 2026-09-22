@@ -339,3 +339,51 @@ def test_skill_frontmatter_is_valid():
     front, _, body = text[4:].partition("\n---")
     assert "name: " in front and "description: " in front
     assert len(body.strip()) > 200
+
+
+# --------------------------------------------------------------------------- #
+# Port parity: the REST half must not silently drop the app's public surface.
+# --------------------------------------------------------------------------- #
+
+# Paths the plugin deliberately does NOT carry, with the reason. Anything missing
+# from the plugin that is not listed here fails the test below.
+_DROPPED_ON_PURPOSE = {
+    ("GET", "/contacts/sync-pending"):
+        "dead stub in api.py — returns a constant {pending: False} ('no longer needed')",
+}
+
+
+def _routes_from(path):
+    """Route (method, shape) pairs from a FastAPI/Flask module's decorators.
+
+    Path parameters are collapsed, so ``/contacts/sync/{net}`` and
+    ``/contacts/sync/{network}`` are recognised as the same route.
+    """
+    text = path.read_text()
+    found = set()
+    for match in re.finditer(r"@(?:app|router)\.(get|post|put|delete|patch)\(\s*[\"']([^\"']+)[\"']", text):
+        shape = re.sub(r"\{[^}]+\}", "{}", match.group(2))
+        if shape.startswith("/api/"):
+            shape = shape[len("/api"):]
+        found.add((match.group(1).upper(), shape))
+    return found
+
+
+def test_the_rest_half_keeps_every_public_route_of_the_original_app():
+    """The plugin is a PORT: a path the app served must not vanish.
+
+    Skips when the sibling app is not present (an installed copy has no api.py).
+    """
+    app_api = PLUGIN_DIR.parent / "api.py"
+    if not app_api.is_file():
+        pytest.skip("standalone app not present beside the plugin (installed copy)")
+    app_routes = _routes_from(app_api)
+    plugin_routes = _routes_from(PLUGIN_DIR / "dashboard" / "plugin_api.py")
+    assert len(app_routes) > 20, f"parser found only {len(app_routes)} app routes — the guard would be blind"
+    assert len(plugin_routes) > 20, f"parser found only {len(plugin_routes)} plugin routes"
+
+    dropped = sorted(app_routes - plugin_routes)
+    assert dropped == sorted(_DROPPED_ON_PURPOSE), (
+        "the REST half no longer serves routes the app served, or the on-purpose "
+        f"list is stale: {dropped}"
+    )

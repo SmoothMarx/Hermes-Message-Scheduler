@@ -134,7 +134,14 @@ def get_jobs(limit: int = Query(default=200, ge=1, le=1000)):
 
 
 @router.post("/jobs")
+@router.post("/schedule")
 def create_job(req: ScheduleRequest):
+    """Create a scheduled message.
+
+    Two paths, one handler: ``/jobs`` is this surface's own name, ``/schedule`` is
+    the path the original standalone app (``api.py``) served. A caller written
+    against the app keeps working against the plugin.
+    """
     if req.attachments:
         # Accept either already-served names or absolute paths from the host.
         for name in req.attachments:

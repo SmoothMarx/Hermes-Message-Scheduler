@@ -159,3 +159,26 @@ def test_templates_crud(client):
     template_id = created.json()["id"]
     assert client.get(f"{PREFIX}/templates").json()["templates"][0]["name"] == "Birthday"
     assert client.delete(f"{PREFIX}/templates/{template_id}").json()["status"] == "deleted"
+
+
+def test_schedule_is_the_same_operation_as_jobs(client):
+    """``/schedule`` is the original app's path; ``/jobs`` is this surface's name.
+
+    Both must create a queued message with the same shape — a caller written
+    against ``api.py`` keeps working, and neither path drifts from the other.
+    """
+    payload = {"person": "Maria", "network": "telegram",
+               "when": "2030-01-01T09:00:00", "text": "via /schedule"}
+    via_schedule = client.post(f"{PREFIX}/schedule", json=payload)
+    assert via_schedule.status_code == 200, via_schedule.text
+    via_jobs = client.post(f"{PREFIX}/jobs", json={**payload, "text": "via /jobs"})
+    assert via_jobs.status_code == 200, via_jobs.text
+
+    assert via_schedule.json().keys() == via_jobs.json().keys()
+    queued = {j["text"] for j in client.get(f"{PREFIX}/jobs").json()["jobs"]}
+    assert queued == {"via /schedule", "via /jobs"}
+
+    # Validation travels through both paths identically.
+    bad = dict(payload, when="not-a-timestamp")
+    assert client.post(f"{PREFIX}/schedule", json=bad).status_code == 400
+    assert client.post(f"{PREFIX}/jobs", json=bad).status_code == 400
