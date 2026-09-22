@@ -46,17 +46,31 @@ toolset, the REST mount point and the dashboard directory.
 
 ## Install
 
+Two equivalent routes. Both land the package at
+`$HERMES_HOME/plugins/message-scheduler/` — the folder name is load-bearing (it keys
+the toolset, the REST mount and the dashboard tab).
+
+**A. Hermes' own installer** (needs the branch merged to the repo's default branch —
+the installer clones `HEAD`):
+
+```bash
+hermes plugins install SmoothMarx/Hermes-Message-Scheduler#plugin --enable
+```
+
+The `#plugin` fragment is what selects the `plugin/` subdirectory inside the repo.
+
+**B. This package's installer** (works from a checkout, any branch):
+
 ```bash
 ./plugin/install.sh --dry-run            # show what would happen
 ./plugin/install.sh                      # install into $HERMES_HOME (default ~/.hermes)
 ./plugin/install.sh --hermes-home /path/.hermes
 ```
 
-The installer copies the package to `$HERMES_HOME/plugins/message-scheduler/`,
-backs up any previous install, then *verifies* it: the agent entry imports and
-registers its tools, the REST module mounts (imported by path, the way the backend
-does it), the bundle is a real IIFE, and the dispatcher tick runs dry. It exits
-non-zero if any of that fails.
+Either way, the installer's copy step is followed by a *verification*: the agent
+entry imports and registers its tools, the REST module mounts (imported by path, the
+way the backend does it), the bundle is a real IIFE, and the dispatcher tick runs dry.
+Both exit non-zero if any of that fails.
 
 Then:
 
@@ -64,6 +78,26 @@ Then:
 2. restart the web server so the REST half mounts (dashboard tab);
 3. reload the desktop app (sidebar → Messages; the desktop half is opt-in in Settings → Plugins);
 4. add the cadence cron entries — see below.
+
+### Verifying it (no model calls)
+
+```bash
+hermes plugins list                      # enabled, version, source
+hermes plugins validate $HERMES_HOME/plugins/message-scheduler   # 14 checks incl. the desktop SDK surface
+hermes tools list | grep -i message-sched  # the toolset reaches the agent
+```
+
+Tool visibility has one wrinkle worth knowing: Hermes resolves which *plugin* toolsets
+to expose from the previous launch's persisted key set
+(`$HERMES_HOME/cache/plugin_toolset_keys.json`, written by the background plugin
+discovery at startup). On a **brand-new** `HERMES_HOME`, the very first launch may
+therefore run without them; the next launch has them. Nothing is broken and no config
+edit is needed — `hermes tools list` shows the toolset either way, and
+`hermes tools enable message-scheduler` pins it explicitly if you want it belt-and-braces.
+
+The eight agent tools may reach the model either directly or through Hermes'
+progressive-disclosure `tool_search` bridge — that is the host's choice, not the
+plugin's, and both routes call the same handlers.
 
 ## Cadence (this is what makes "scheduled" true)
 
